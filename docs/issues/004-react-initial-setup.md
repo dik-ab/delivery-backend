@@ -31,12 +31,11 @@ pnpm install
 ### 2. 追加パッケージのインストール
 
 ```bash
-# APIリクエスト用
-pnpm add axios
-
 # 後のIssueで使うけど、先に入れておく
 pnpm add react-router-dom
 ```
+
+> 💡 **ポイント**: API リクエストにはブラウザ標準の `fetch` API を使うので、axios のような外部ライブラリは不要。依存を減らせるし、ブラウザの標準仕様を学べる。
 
 ### 3. Vite の設定変更
 
