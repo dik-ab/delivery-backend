@@ -81,24 +81,76 @@ func main() {
 
 ### 3. フロントエンドに API クライアントを作成
 
-`src/api/client.js` を作成する。
+`src/api/client.js` を作成する。外部ライブラリは使わず、ブラウザ標準の `fetch` API でラップする。
 
 ```js
-import axios from 'axios'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
+/**
+ * fetch をラップした API クライアント
+ * - ベースURLの自動付与
+ * - JSON の自動パース
+ * - エラーハンドリング
+ */
+const apiClient = {
+  async get(path) {
+    const response = await fetch(`${API_URL}${path}`)
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
   },
-})
+
+  async post(path, body) {
+    const response = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async put(path, body) {
+    const response = await fetch(`${API_URL}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+
+  async delete(path) {
+    const response = await fetch(`${API_URL}${path}`, {
+      method: 'DELETE',
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  },
+}
 
 export default apiClient
 ```
 
 > 💡 **ポイント**:
-> - `axios.create()` でベース設定を持つインスタンスを作ると、毎回URLを書かなくて済む
+> - `fetch` はブラウザ標準の API なので追加パッケージ不要
+> - axios と違って、`fetch` は HTTP エラー（400, 500 等）でも reject **しない**。`response.ok` を自分でチェックする必要がある
+> - `response.json()` で JSON に自動パースできる
 > - `import.meta.env.VITE_API_URL` で `.env.local` の値を読み込む
 
 ### 4. App.jsx から Health Check を呼び出す
@@ -118,8 +170,9 @@ function App() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const response = await apiClient.get('/health')
-        setHealth(response.data)
+        // fetch ベースの apiClient で GET リクエスト
+        const data = await apiClient.get('/health')
+        setHealth(data)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -165,6 +218,8 @@ function App() {
 
 export default App
 ```
+
+> 💡 **axios との違い**: axios は `response.data` でデータにアクセスするけど、fetch ベースの apiClient は直接データを返す。`const data = await apiClient.get('/health')` でそのまま使える。
 
 ### 5. ディレクトリ構成の確認
 
@@ -220,7 +275,7 @@ pnpm dev
 ブラウザの開発者ツール（F12）→ Console に以下のようなエラーが出る場合：
 
 ```
-Access to XMLHttpRequest at 'http://localhost:8080/health' from origin 'http://localhost:3000' has been blocked by CORS policy
+Access to fetch at 'http://localhost:8080/health' from origin 'http://localhost:3000' has been blocked by CORS policy
 ```
 
 → バックエンドの CORS ミドルウェアが正しく設定されているか確認！
@@ -238,7 +293,9 @@ Access to XMLHttpRequest at 'http://localhost:8080/health' from origin 'http://l
 |------|------|
 | CORS | Cross-Origin Resource Sharing。異なるオリジン間の通信を安全に行う仕組み |
 | Preflight Request | ブラウザが本リクエストの前に `OPTIONS` メソッドで送る確認リクエスト |
-| `axios` | HTTP クライアントライブラリ。`fetch` より使いやすい |
+| `fetch` | ブラウザ標準の HTTP クライアント API。外部ライブラリ不要で使える |
+| `response.ok` | fetch はエラーでも reject しないので、自分でステータスチェックが必要 |
+| `response.json()` | レスポンスボディを JSON としてパースする。Promise を返す |
 | `async/await` | 非同期処理を同期的に書けるJSの構文。`try/catch` でエラーハンドリング |
 | `useEffect` | 第2引数 `[]` で「マウント時に1回だけ」実行される |
 | 環境変数 | `import.meta.env.VITE_*` で `.env.local` の値にアクセスできる |
