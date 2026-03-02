@@ -6,9 +6,9 @@ import "time"
 type Match struct {
 	ID               uint      `json:"id" gorm:"primaryKey"`
 	TripID           uint      `json:"trip_id"`
-	Trip             Trip      `json:"trip" gorm:"foreignKey:TripID"`
+	Trip             Trip      `json:"trip" gorm:"foreignKey:TripID" binding:"-"`
 	ShipperID        uint      `json:"shipper_id"`
-	Shipper          User      `json:"shipper" gorm:"foreignKey:ShipperID"`
+	Shipper          User      `json:"shipper" gorm:"foreignKey:ShipperID" binding:"-"`
 	CargoWeight      float64   `json:"cargo_weight"`      // kg
 	CargoDescription string    `json:"cargo_description"`
 	Status           string    `json:"status" gorm:"default:pending"` // pending, approved, rejected, completed
