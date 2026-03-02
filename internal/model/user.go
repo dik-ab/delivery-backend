@@ -5,7 +5,7 @@ import "time"
 // User represents a platform user (driver, shipper, or admin)
 type User struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
-	Email        string    `json:"email" gorm:"uniqueIndex" binding:"required"`
+	Email        string    `json:"email" gorm:"type:varchar(255);uniqueIndex" binding:"required"`
 	PasswordHash string    `json:"-"`
 	Name         string    `json:"name" binding:"required"`
 	Role         string    `json:"role" gorm:"default:driver"` // driver, shipper, admin
