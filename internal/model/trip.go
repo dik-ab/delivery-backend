@@ -14,7 +14,7 @@ type Trip struct {
 	DestinationLat     float64   `json:"destination_lat"`
 	DestinationLng     float64   `json:"destination_lng"`
 	DepartureAt        time.Time `json:"departure_at"`
-	EstimatedArrival   time.Time `json:"estimated_arrival"`
+	EstimatedArrival   *time.Time `json:"estimated_arrival"`
 	VehicleType        string    `json:"vehicle_type"`
 	AvailableWeight    float64   `json:"available_weight"` // kg
 	Price              int       `json:"price"`            // 円
