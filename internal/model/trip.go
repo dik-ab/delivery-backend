@@ -6,7 +6,7 @@ import "time"
 type Trip struct {
 	ID                 uint      `json:"id" gorm:"primaryKey"`
 	DriverID           uint      `json:"driver_id"`
-	Driver             User      `json:"driver" gorm:"foreignKey:DriverID"`
+	Driver             User      `json:"driver" gorm:"foreignKey:DriverID" binding:"-"`
 	OriginAddress      string    `json:"origin_address" binding:"required"`
 	OriginLat          float64   `json:"origin_lat"`
 	OriginLng          float64   `json:"origin_lng"`
