@@ -49,6 +49,23 @@ type User struct {
 > | `gorm:"default:shipper"` | INSERTで値が空の時のデフォルト値 |
 > | `binding:"required"` | Ginのバリデーション。リクエストに必須 |
 
+> 💡 **なぜ `Password` ではなく `PasswordHash` なの？**
+> DB に保存するのは**平文のパスワードではなく、bcrypt でハッシュ化した後の文字列**。
+> フィールド名で「これはハッシュ済みの値ですよ」と明示しておくことが大事。
+>
+> ```
+> ❌ Password string     ← 「これ平文？ハッシュ済み？」と後から混乱する
+> ✅ PasswordHash string ← 「ハッシュ化済みの値が入ってるんだな」と一目でわかる
+> ```
+>
+> 実際の流れ:
+> 1. ユーザーが `"mypassword123"` を送ってくる
+> 2. サーバー側で bcrypt にかけて `"$2a$10$N9qo8uLOi..."` に変換
+> 3. その **ハッシュ化された文字列** を `PasswordHash` に保存
+>
+> DB には元のパスワードは一切保存されない。万が一 DB が流出しても、元のパスワードは復元できない。
+> ハッシュ化の詳細は Issue #008 で学ぶ。
+
 > ⚠️ **なぜ `gorm:"type:varchar(255)"` が必要？**
 > GORMはGoの `string` をMySQLの `longtext` にマッピングする。
 > `longtext` にはUNIQUE制約を付けられないため、明示的に `varchar(255)` を指定する。
