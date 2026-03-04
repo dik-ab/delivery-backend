@@ -224,6 +224,35 @@ docker compose up --build
 | Claims | JWTの Payload に含めるデータ。独自フィールドを追加できる |
 | 環境変数 | パスワードやシークレットキーをコードに直書きせず、`.env` から読み込む |
 
+## 🗺️ この Issue の位置づけ（JWT × HTTP-only Cookie 全体像）
+
+この Issue (#008) では JWT の「生成」と「検証」の**部品だけ**を作る。
+実際に HTTP-only Cookie として使うのは次の Issue 以降。
+
+```
+#008 (今回)  → JWT生成 & パスワードハッシュの「部品」を作る
+                 ↓ 部品を使う
+#009         → ユーザー登録時に c.SetCookie() で HTTP-only Cookie にJWTをセット
+#010         → ログイン時にも同じく Cookie にセット
+#011         → ミドルウェアで c.Cookie() を使い Cookie からJWTを読み取って認証
+#012         → ログアウト時に MaxAge=-1 で Cookie を削除
+```
+
+**なぜ localStorage ではなく HTTP-only Cookie？**
+
+```
+localStorage に JWT を保存する場合:
+  → JavaScript で読み書きできる（localStorage.getItem("token")）
+  → XSS（クロスサイトスクリプティング）攻撃で JS が注入されると、トークンを盗まれる
+
+HTTP-only Cookie に JWT を保存する場合:
+  → JavaScript からアクセスできない（document.cookie でも見えない）
+  → ブラウザが自動的にリクエストに Cookie を付けてくれる
+  → XSS攻撃を受けてもトークンを盗まれない
+```
+
+ポートフォリオレベルでも HTTP-only Cookie で実装できると**セキュリティへの理解をアピールできる**。
+
 ## 🏷️ ラベル
 
 `feature` `backend` `security` `auth` `初心者向け`
