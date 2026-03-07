@@ -48,10 +48,28 @@ func (r *TripRepository) GetByDriverID(driverID uint) ([]model.Trip, error) {
 	return trips, nil
 }
 
-// GetOpenTrips retrieves all open trips
+// GetOpenTrips retrieves all open trips (public only for external search)
 func (r *TripRepository) GetOpenTrips() ([]model.Trip, error) {
 	var trips []model.Trip
+	if err := r.db.Where("status = ? AND is_public = ?", "open", true).Preload("Driver").Find(&trips).Error; err != nil {
+		return nil, err
+	}
+	return trips, nil
+}
+
+// GetOpenTripsAll retrieves all open trips (including private, for admin/internal)
+func (r *TripRepository) GetOpenTripsAll() ([]model.Trip, error) {
+	var trips []model.Trip
 	if err := r.db.Where("status = ?", "open").Preload("Driver").Find(&trips).Error; err != nil {
+		return nil, err
+	}
+	return trips, nil
+}
+
+// GetReturnTrips retrieves all open return trips (empty trucks)
+func (r *TripRepository) GetReturnTrips() ([]model.Trip, error) {
+	var trips []model.Trip
+	if err := r.db.Where("status = ? AND is_public = ? AND trip_type = ?", "open", true, "return").Preload("Driver").Find(&trips).Error; err != nil {
 		return nil, err
 	}
 	return trips, nil
@@ -90,9 +108,7 @@ func (r *TripRepository) Delete(id uint) error {
 // GetTripsByOriginDestination finds trips matching origin and destination within radius
 func (r *TripRepository) GetTripsByOriginDestination(originLat, originLng, destLat, destLng float64, radiusKm float64) ([]model.Trip, error) {
 	var trips []model.Trip
-	// Find trips where origin is near destination and destination is near origin (return trips)
-	// or normal direction trips
-	if err := r.db.Where("status = ?", "open").Preload("Driver").Find(&trips).Error; err != nil {
+	if err := r.db.Where("status = ? AND is_public = ?", "open", true).Preload("Driver").Find(&trips).Error; err != nil {
 		return nil, err
 	}
 	return trips, nil
