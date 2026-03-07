@@ -33,6 +33,7 @@ type Trip struct {
 	RoutePolyline      string     `json:"route_polyline" gorm:"type:text"`         // エンコード済みポリライン
 	RouteDurationSec   int        `json:"route_duration_sec" gorm:"default:0"`     // ルート全体の所要時間（秒）
 	RouteStepsJSON     string     `json:"route_steps_json" gorm:"type:mediumtext"` // ステップごとの情報（JSON）
+	Matches            []Match    `json:"matches" gorm:"foreignKey:TripID" binding:"-"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
