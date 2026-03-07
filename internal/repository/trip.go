@@ -30,7 +30,7 @@ func (r *TripRepository) GetAll() ([]model.Trip, error) {
 // GetByID retrieves a trip by ID
 func (r *TripRepository) GetByID(id uint) (*model.Trip, error) {
 	var trip model.Trip
-	if err := r.db.Preload("Driver").First(&trip, id).Error; err != nil {
+	if err := r.db.Preload("Driver").Preload("Matches").Preload("Matches.Shipper").First(&trip, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("trip not found")
 		}
