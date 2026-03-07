@@ -189,6 +189,7 @@ type SearchRequest struct {
 	DestLng    float64 `json:"dest_lng" binding:"required"`
 	RadiusKm   float64 `json:"radius_km"`
 	Date       string  `json:"date"`
+	TripType   string  `json:"trip_type"` // "outbound", "return", or "" (all)
 }
 
 // SearchTrips godoc
@@ -224,6 +225,11 @@ func (h *TripHandler) SearchTrips(c *gin.Context) {
 	var returnMatches []model.Trip
 
 	for _, trip := range allTrips {
+		// Filter by trip_type if provided
+		if req.TripType != "" && trip.TripType != req.TripType {
+			continue
+		}
+
 		// Filter by date if provided
 		if req.Date != "" {
 			searchDate, err := time.Parse("2006-01-02", req.Date)
