@@ -59,6 +59,9 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
 		api.DELETE("/deliveries/:id", deliveryHandler.DeleteDelivery)
 	}
 
+	// Stripe Webhook (認証不要 - Stripe から直接呼ばれるため)
+	api.POST("/webhook/stripe", paymentHandler.HandleWebhook)
+
 	// Protected routes
 	protected := api.Group("")
 	protected.Use(middleware.AuthMiddleware(jwtSecret))
