@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/paymentintent"
+	"github.com/stripe/stripe-go/v76/webhook"
 )
 
 // PaymentHandler handles payment-related requests
@@ -171,4 +174,106 @@ func (h *PaymentHandler) ConfirmPayment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, payment)
+}
+
+// HandleWebhook godoc
+// @Summary Handle Stripe webhook events
+// @Description Receive and process Stripe webhook events (payment_intent.succeeded, payment_intent.payment_failed)
+// @Tags payments
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/webhook/stripe [post]
+func (h *PaymentHandler) HandleWebhook(c *gin.Context) {
+	// Stripe Webhook のリクエストボディサイズ制限（Stripe推奨: 最大64KB）
+	const maxBodyBytes = int64(65536)
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxBodyBytes))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストボディの読み取りに失敗しました"})
+		return
+	}
+
+	// Webhook Signing Secret で署名を検証
+	// Stripe Dashboard → Webhooks → Signing secret でコピーした値を環境変数に設定
+	endpointSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+
+	var event stripe.Event
+
+	if endpointSecret != "" {
+		// 本番: 署名検証あり（推奨）
+		event, err = webhook.ConstructEvent(body, c.GetHeader("Stripe-Signature"), endpointSecret)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Webhook署名の検証に失敗しました: " + err.Error()})
+			return
+		}
+	} else {
+		// 開発環境: 署名検証なし（STRIPE_WEBHOOK_SECRET未設定時）
+		if err := json.Unmarshal(body, &event); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Webhookイベントのパースに失敗しました"})
+			return
+		}
+	}
+
+	// イベントタイプに応じて処理
+	switch event.Type {
+	case "payment_intent.succeeded":
+		var pi stripe.PaymentIntent
+		if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PaymentIntentのパースに失敗しました"})
+			return
+		}
+
+		// DB上の決済レコードを更新
+		payment, err := h.paymentRepo.GetByStripePaymentID(pi.ID)
+		if err != nil {
+			// 該当する決済レコードが見つからない場合はログだけ出して200返す
+			c.JSON(http.StatusOK, gin.H{"message": "payment record not found, skipped"})
+			return
+		}
+
+		payment.Status = "succeeded"
+		if err := h.paymentRepo.Update(payment.ID, payment); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "決済ステータスの更新に失敗しました"})
+			return
+		}
+
+		// マッチングステータスも完了に更新
+		if matchIDStr, ok := pi.Metadata["match_id"]; ok {
+			matchID, err := strconv.ParseUint(matchIDStr, 10, 32)
+			if err == nil {
+				match, err := h.matchRepo.GetByID(uint(matchID))
+				if err == nil {
+					match.Status = model.MatchStatusCompleted
+					h.matchRepo.Update(uint(matchID), match)
+				}
+			}
+		}
+
+	case "payment_intent.payment_failed":
+		var pi stripe.PaymentIntent
+		if err := json.Unmarshal(event.Data.Raw, &pi); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "PaymentIntentのパースに失敗しました"})
+			return
+		}
+
+		// DB上の決済レコードを失敗に更新
+		payment, err := h.paymentRepo.GetByStripePaymentID(pi.ID)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "payment record not found, skipped"})
+			return
+		}
+
+		payment.Status = "failed"
+		if err := h.paymentRepo.Update(payment.ID, payment); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "決済ステータスの更新に失敗しました"})
+			return
+		}
+
+	default:
+		// 他のイベントタイプは無視して200を返す
+	}
+
+	c.JSON(http.StatusOK, gin.H{"received": true})
 }
