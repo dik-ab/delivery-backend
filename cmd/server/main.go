@@ -49,6 +49,7 @@ func main() {
 		&model.Trip{},
 		&model.Match{},
 		&model.Tracking{},
+		&model.Payment{},
 	); err != nil {
 		log.Fatalf("Failed to migrate models: %v", err)
 	}
