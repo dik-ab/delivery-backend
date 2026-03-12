@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テーブル設計書 - 帰り便マッチングプラットフォーム</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --secondary: #059669;
+    --secondary-light: #d1fae5;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-400: #9ca3af;
+    --gray-600: #4b5563;
+    --gray-800: #1f2937;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', 'Hiragino Sans', 'Meiryo', sans-serif; color: var(--gray-800); line-height: 1.6; background: var(--gray-50); }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  h2 { font-size: 1.4rem; margin: 48px 0 12px; padding: 8px 16px; background: var(--primary); color: #fff; border-radius: 8px; }
+  h3 { font-size: 1.1rem; margin: 20px 0 8px; color: var(--primary); }
+  .subtitle { color: var(--gray-600); margin-bottom: 32px; }
+  .tbl-wrap { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid var(--gray-200); overflow-x: auto; }
+  .tbl-desc { color: var(--gray-600); margin-bottom: 12px; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--gray-200); }
+  th { background: var(--gray-100); font-weight: 600; white-space: nowrap; }
+  .col-name { font-family: 'SF Mono', 'Consolas', monospace; font-weight: 600; color: var(--gray-800); }
+  .col-type { font-family: 'SF Mono', 'Consolas', monospace; color: var(--secondary); font-size: 0.82rem; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+  .pk { background: #fef3c7; color: #92400e; }
+  .fk { background: var(--primary-light); color: var(--primary); }
+  .uk { background: #ede9fe; color: #6d28d9; }
+  .nn { background: var(--gray-100); color: var(--gray-600); }
+  .idx { background: var(--secondary-light); color: var(--secondary); }
+  .er-section { background: #fff; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid var(--gray-200); box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow-x: auto; }
+  .relation-list { margin: 16px 0; padding-left: 20px; }
+  .relation-list li { margin: 6px 0; color: var(--gray-600); font-size: 0.9rem; }
+  .relation-list code { background: var(--gray-100); padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; }
+  .status-flow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+  .status-flow span { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+  .sf-arrow { color: var(--gray-400); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>テーブル設計書</h1>
+<p class="subtitle">帰り便マッチングプラットフォーム &mdash; 新DB設計 v1.0</p>
+
+<!-- ER overview -->
+<div class="er-section">
+  <h3>リレーション概要</h3>
+  <pre style="font-size:0.85rem; line-height:2; color: var(--gray-800);">
+  companies ──┬── users (1:N)          会社に複数ユーザーが所属
+              ├── vehicles (1:N)       会社が車両を所有
+              ├── dispatch_plans (1:N)  会社が配車計画を作成
+              ├── subscriptions (1:N)   サブスク契約
+              └── reviews (1:N)        会社への評価
+
+  dispatch_plans ──┬── trip_legs (1:N)    配車計画 → 複数区間
+                   └── trackings (1:N)   位置情報
+
+  trip_legs ──┬── matches (1:N)          区間に対するマッチング
+              └── trackings (1:N)        区間の位置情報
+
+  matches ──┬── payments (1:N)           マッチング → 決済
+            ├── chat_rooms (1:1)         承認後にチャット開設
+            └── reviews (1:N)            完了後に評価
+
+  chat_rooms ── chat_messages (1:N)      チャットメッセージ
+  chat_messages ── user_violations (1:N) 違反記録
+  </pre>
+</div>
+
+<!-- ==================== companies ==================== -->
+<h2>companies（会社）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">運送会社の基本情報。段階的情報開示の主体。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td>主キー</td></tr>
+    <tr><td class="col-name">name</td><td class="col-type">varchar(255)</td><td><span class="badge nn">NOT NULL</span></td><td>正式会社名（承認後に開示）</td></tr>
+    <tr><td class="col-name">display_name</td><td class="col-type">varchar(255)</td><td><span class="badge nn">NOT NULL</span></td><td>匿名表示名（例: 神奈川エリアA社）</td></tr>
+    <tr><td class="col-name">address</td><td class="col-type">varchar(500)</td><td></td><td>本社住所（決済完了後に開示）</td></tr>
+    <tr><td class="col-name">headquarters_lat</td><td class="col-type">double</td><td></td><td>本社緯度</td></tr>
+    <tr><td class="col-name">headquarters_lng</td><td class="col-type">double</td><td></td><td>本社経度</td></tr>
+    <tr><td class="col-name">phone</td><td class="col-type">varchar(20)</td><td></td><td>電話番号（決済完了後に開示）</td></tr>
+    <tr><td class="col-name">email</td><td class="col-type">varchar(255)</td><td></td><td>連絡先メール</td></tr>
+    <tr><td class="col-name">logo_url</td><td class="col-type">varchar(500)</td><td></td><td>会社ロゴURL</td></tr>
+    <tr><td class="col-name">rating_avg</td><td class="col-type">float</td><td>default: 0</td><td>平均評価（マッチング申請後に開示）</td></tr>
+    <tr><td class="col-name">total_deals</td><td class="col-type">int</td><td>default: 0</td><td>取引件数</td></tr>
+    <tr><td class="col-name">plan</td><td class="col-type">varchar(20)</td><td>default: 'free'</td><td>free / standard / premium</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== users ==================== -->
+<h2>users（ユーザー）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">個人アカウント。運送会社メンバーは company_id で所属。荷主は company_id が NULL の場合あり。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> nullable</td><td>→ companies.id</td></tr>
+    <tr><td class="col-name">email</td><td class="col-type">varchar(255)</td><td><span class="badge uk">UNIQUE</span> <span class="badge nn">NOT NULL</span></td><td></td></tr>
+    <tr><td class="col-name">password_hash</td><td class="col-type">varchar(255)</td><td><span class="badge nn">NOT NULL</span></td><td>bcryptハッシュ</td></tr>
+    <tr><td class="col-name">name</td><td class="col-type">varchar(100)</td><td><span class="badge nn">NOT NULL</span></td><td></td></tr>
+    <tr><td class="col-name">role</td><td class="col-type">varchar(20)</td><td><span class="badge nn">NOT NULL</span></td><td>owner / driver / dispatcher / shipper / admin</td></tr>
+    <tr><td class="col-name">phone</td><td class="col-type">varchar(20)</td><td></td><td></td></tr>
+    <tr><td class="col-name">is_active</td><td class="col-type">bool</td><td>default: true</td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_users_company</span> (company_id), <span class="badge idx">idx_users_role</span> (role)</p>
+</div>
+
+<!-- ==================== vehicles ==================== -->
+<h2>vehicles（車両）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">会社が所有する車両。配車計画で vehicle_id を指定して使用。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ companies.id</td></tr>
+    <tr><td class="col-name">plate_number</td><td class="col-type">varchar(20)</td><td><span class="badge uk">UNIQUE</span></td><td>車番（横浜 100 あ 1234）</td></tr>
+    <tr><td class="col-name">vehicle_type</td><td class="col-type">varchar(20)</td><td><span class="badge nn">NOT NULL</span></td><td>軽トラ / 2t / 4t / 10t / 大型</td></tr>
+    <tr><td class="col-name">max_weight</td><td class="col-type">float</td><td></td><td>最大積載量 (kg)</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'active'</td><td>active / maintenance / retired</td></tr>
+    <tr><td class="col-name">note</td><td class="col-type">varchar(500)</td><td></td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== dispatch_plans ==================== -->
+<h2>dispatch_plans（配車計画）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">1台のトラック × 1日 = 1つの配車計画。ソロモードの核心テーブル。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ companies.id</td></tr>
+    <tr><td class="col-name">vehicle_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ vehicles.id</td></tr>
+    <tr><td class="col-name">driver_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id（当日の運転手）</td></tr>
+    <tr><td class="col-name">plan_date</td><td class="col-type">date</td><td><span class="badge nn">NOT NULL</span></td><td>配車日</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'planned'</td><td>planned / in_progress / completed / cancelled</td></tr>
+    <tr><td class="col-name">note</td><td class="col-type">text</td><td></td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_dp_company_date</span> (company_id, plan_date), <span class="badge idx">idx_dp_driver</span> (driver_id), <span class="badge idx">idx_dp_status</span> (status)</p>
+</div>
+
+<!-- ==================== trip_legs ==================== -->
+<h2>trip_legs（区間）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">配車計画を構成する各区間。旧 trips テーブルの後継。マッチングの単位。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">dispatch_plan_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ dispatch_plans.id</td></tr>
+    <tr><td class="col-name">leg_order</td><td class="col-type">int</td><td><span class="badge nn">NOT NULL</span></td><td>区間順序（1, 2, 3...）</td></tr>
+    <tr><td class="col-name">origin_address</td><td class="col-type">varchar(500)</td><td><span class="badge nn">NOT NULL</span></td><td>出発地住所</td></tr>
+    <tr><td class="col-name">origin_lat</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">origin_lng</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">destination_address</td><td class="col-type">varchar(500)</td><td><span class="badge nn">NOT NULL</span></td><td>到着地住所</td></tr>
+    <tr><td class="col-name">destination_lat</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">destination_lng</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">departure_at</td><td class="col-type">datetime</td><td></td><td>出発予定時刻</td></tr>
+    <tr><td class="col-name">arrival_at</td><td class="col-type">datetime</td><td></td><td>到着予定時刻</td></tr>
+    <tr><td class="col-name">leg_type</td><td class="col-type">varchar(20)</td><td>default: 'outbound'</td><td>outbound / return</td></tr>
+    <tr><td class="col-name">cargo_status</td><td class="col-type">varchar(20)</td><td>default: 'loaded'</td><td>loaded / empty_seeking / empty_private</td></tr>
+    <tr><td class="col-name">cargo_description</td><td class="col-type">varchar(500)</td><td></td><td>積荷内容</td></tr>
+    <tr><td class="col-name">cargo_weight</td><td class="col-type">float</td><td></td><td>現在の積荷重量 (kg)</td></tr>
+    <tr><td class="col-name">available_weight</td><td class="col-type">float</td><td></td><td>空き積載量 (kg)</td></tr>
+    <tr><td class="col-name">price</td><td class="col-type">int</td><td></td><td>希望料金（円）</td></tr>
+    <tr><td class="col-name">visibility</td><td class="col-type">varchar(20)</td><td>default: 'private'</td><td>private / company_only / public</td></tr>
+    <tr><td class="col-name">route_polyline</td><td class="col-type">text</td><td></td><td>エンコード済みポリライン</td></tr>
+    <tr><td class="col-name">route_duration_sec</td><td class="col-type">int</td><td>default: 0</td><td>ルート所要時間（秒）</td></tr>
+    <tr><td class="col-name">route_steps_json</td><td class="col-type">mediumtext</td><td></td><td>ステップごとの情報（位置予測用）</td></tr>
+    <tr><td class="col-name">delay_minutes</td><td class="col-type">int</td><td>default: 0</td><td>遅延（分）</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'scheduled'</td><td>scheduled / in_transit / completed / cancelled</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_tl_dispatch</span> (dispatch_plan_id), <span class="badge idx">idx_tl_vis_cargo</span> (visibility, cargo_status), <span class="badge idx">idx_tl_departure</span> (departure_at), <span class="badge idx">idx_tl_status</span> (status)</p>
+</div>
+
+<!-- ==================== matches ==================== -->
+<h2>matches（マッチング）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">区間に対するマッチングリクエスト。荷主→運送会社、または運送会社→別運送会社。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">trip_leg_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ trip_legs.id</td></tr>
+    <tr><td class="col-name">requester_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id（リクエスト送信者）</td></tr>
+    <tr><td class="col-name">requester_company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> nullable</td><td>→ companies.id（会社間マッチング時）</td></tr>
+    <tr><td class="col-name">cargo_weight</td><td class="col-type">float</td><td></td><td>荷物重量 (kg)</td></tr>
+    <tr><td class="col-name">cargo_description</td><td class="col-type">varchar(500)</td><td></td><td>荷物内容</td></tr>
+    <tr><td class="col-name">message</td><td class="col-type">text</td><td></td><td>リクエスト時メッセージ</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'pending'</td><td>下記参照</td></tr>
+    <tr><td class="col-name">reject_reason</td><td class="col-type">varchar(500)</td><td></td><td>拒否理由</td></tr>
+    <tr><td class="col-name">request_type</td><td class="col-type">varchar(30)</td><td>default: 'shipper_to_company'</td><td>shipper_to_company / company_to_company</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <h3>ステータス遷移</h3>
+  <div class="status-flow">
+    <span style="background:#dbeafe;color:#2563eb;">pending</span>
+    <span class="sf-arrow">→</span>
+    <span style="background:#d1fae5;color:#059669;">approved</span>
+    <span class="sf-arrow">→</span>
+    <span style="background:#fef3c7;color:#d97706;">payment_pending</span>
+    <span class="sf-arrow">→</span>
+    <span style="background:#fee2e2;color:#dc2626;">completed</span>
+  </div>
+  <div class="status-flow">
+    <span style="background:#dbeafe;color:#2563eb;">pending</span>
+    <span class="sf-arrow">→</span>
+    <span style="background:#f3f4f6;color:#4b5563;">rejected</span>
+    &nbsp;&nbsp;/&nbsp;&nbsp;
+    <span style="background:#f3f4f6;color:#4b5563;">cancelled</span>（どの段階からも）
+  </div>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_m_trip_leg</span> (trip_leg_id), <span class="badge idx">idx_m_requester</span> (requester_id), <span class="badge idx">idx_m_status</span> (status)</p>
+</div>
+
+<!-- ==================== payments ==================== -->
+<h2>payments（決済）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">Stripe Payment Intent ベースの決済記録。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">match_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ matches.id</td></tr>
+    <tr><td class="col-name">payer_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id</td></tr>
+    <tr><td class="col-name">amount</td><td class="col-type">int</td><td><span class="badge nn">NOT NULL</span></td><td>金額（円）最低50円</td></tr>
+    <tr><td class="col-name">currency</td><td class="col-type">varchar(3)</td><td>default: 'jpy'</td><td></td></tr>
+    <tr><td class="col-name">stripe_payment_id</td><td class="col-type">varchar(255)</td><td></td><td>Stripe Payment Intent ID</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'pending'</td><td>pending / succeeded / failed / refunded</td></tr>
+    <tr><td class="col-name">paid_at</td><td class="col-type">datetime</td><td></td><td>決済完了時刻</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== chat_rooms ==================== -->
+<h2>chat_rooms（チャットルーム）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">マッチング承認時に自動作成。1マッチング = 1チャットルーム。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">match_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge uk">UNIQUE</span></td><td>→ matches.id</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'active'</td><td>active / closed</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== chat_messages ==================== -->
+<h2>chat_messages（チャットメッセージ）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">送信時にサーバーサイドで連絡先情報をフィルタリング。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">chat_room_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ chat_rooms.id</td></tr>
+    <tr><td class="col-name">sender_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id</td></tr>
+    <tr><td class="col-name">content</td><td class="col-type">text</td><td><span class="badge nn">NOT NULL</span></td><td>メッセージ本文</td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'sent'</td><td>sent / filtered / warned</td></tr>
+    <tr><td class="col-name">filtered_reason</td><td class="col-type">varchar(255)</td><td></td><td>検知理由（電話番号、メール等）</td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_cm_room_time</span> (chat_room_id, created_at)</p>
+</div>
+
+<!-- ==================== reviews ==================== -->
+<h2>reviews（評価）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">マッチング完了後の相互評価。会社単位で蓄積。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">match_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ matches.id</td></tr>
+    <tr><td class="col-name">reviewer_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id</td></tr>
+    <tr><td class="col-name">reviewee_company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ companies.id</td></tr>
+    <tr><td class="col-name">rating</td><td class="col-type">int</td><td><span class="badge nn">NOT NULL</span></td><td>1〜5</td></tr>
+    <tr><td class="col-name">comment</td><td class="col-type">text</td><td></td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_rv_company</span> (reviewee_company_id)</p>
+</div>
+
+<!-- ==================== trackings ==================== -->
+<h2>trackings（位置情報）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">予測位置 or ワンタップ報告の記録。GPSは使わない。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">dispatch_plan_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ dispatch_plans.id</td></tr>
+    <tr><td class="col-name">trip_leg_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> nullable</td><td>→ trip_legs.id</td></tr>
+    <tr><td class="col-name">lat</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">lng</td><td class="col-type">double</td><td></td><td></td></tr>
+    <tr><td class="col-name">recorded_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+  <p style="margin-top:8px; font-size:0.82rem; color: var(--gray-400);">INDEX: <span class="badge idx">idx_tk_dp_time</span> (dispatch_plan_id, recorded_at)</p>
+</div>
+
+<!-- ==================== subscriptions ==================== -->
+<h2>subscriptions（サブスクリプション）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">Stripe Billing による月額課金。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">company_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ companies.id</td></tr>
+    <tr><td class="col-name">plan</td><td class="col-type">varchar(20)</td><td><span class="badge nn">NOT NULL</span></td><td>free / standard / premium</td></tr>
+    <tr><td class="col-name">stripe_subscription_id</td><td class="col-type">varchar(255)</td><td></td><td></td></tr>
+    <tr><td class="col-name">status</td><td class="col-type">varchar(20)</td><td>default: 'active'</td><td>active / cancelled / past_due</td></tr>
+    <tr><td class="col-name">current_period_start</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">current_period_end</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+    <tr><td class="col-name">updated_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== blocked_patterns ==================== -->
+<h2>blocked_patterns（チャットフィルタパターン）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">チャットメッセージのフィルタリングに使用する正規表現パターン。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">pattern</td><td class="col-type">varchar(500)</td><td><span class="badge nn">NOT NULL</span></td><td>正規表現</td></tr>
+    <tr><td class="col-name">description</td><td class="col-type">varchar(255)</td><td></td><td>電話番号 / メールアドレス / URL</td></tr>
+    <tr><td class="col-name">is_active</td><td class="col-type">bool</td><td>default: true</td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<!-- ==================== user_violations ==================== -->
+<h2>user_violations（違反記録）</h2>
+<div class="tbl-wrap">
+  <p class="tbl-desc">チャットフィルタリングで検知された違反の記録。</p>
+  <table>
+    <tr><th>カラム</th><th>型</th><th>制約</th><th>説明</th></tr>
+    <tr><td class="col-name">id</td><td class="col-type">uint</td><td><span class="badge pk">PK</span></td><td></td></tr>
+    <tr><td class="col-name">user_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span> <span class="badge nn">NOT NULL</span></td><td>→ users.id</td></tr>
+    <tr><td class="col-name">chat_message_id</td><td class="col-type">uint</td><td><span class="badge fk">FK</span></td><td>→ chat_messages.id</td></tr>
+    <tr><td class="col-name">violation_type</td><td class="col-type">varchar(50)</td><td><span class="badge nn">NOT NULL</span></td><td>contact_info_leak / spam / abuse</td></tr>
+    <tr><td class="col-name">detail</td><td class="col-type">text</td><td></td><td></td></tr>
+    <tr><td class="col-name">created_at</td><td class="col-type">datetime</td><td></td><td></td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>
