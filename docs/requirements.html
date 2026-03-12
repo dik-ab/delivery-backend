@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帰り便マッチングプラットフォーム - 要件定義書</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --secondary: #059669;
+    --secondary-light: #d1fae5;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-600: #4b5563;
+    --gray-800: #1f2937;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', 'Hiragino Sans', 'Meiryo', sans-serif; color: var(--gray-800); line-height: 1.7; background: var(--gray-50); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2rem; margin-bottom: 8px; }
+  h2 { font-size: 1.5rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 3px solid var(--primary); }
+  h3 { font-size: 1.15rem; margin: 24px 0 12px; color: var(--primary); }
+  p, li { color: var(--gray-600); }
+  .subtitle { color: var(--gray-600); margin-bottom: 32px; font-size: 1rem; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--gray-200); }
+  .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .card-header .icon { font-size: 1.5rem; }
+  .card-header h3 { margin: 0; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-blue { background: var(--primary-light); color: var(--primary); }
+  .badge-green { background: var(--secondary-light); color: var(--secondary); }
+  .badge-yellow { background: var(--warning-light); color: var(--warning); }
+  .badge-red { background: var(--danger-light); color: var(--danger); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--gray-200); font-size: 0.9rem; }
+  th { background: var(--gray-100); font-weight: 600; color: var(--gray-800); }
+  tr:hover { background: var(--gray-50); }
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 16px 0; }
+  .flow-step { background: var(--primary-light); color: var(--primary); padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; }
+  .flow-arrow { color: var(--gray-600); font-size: 1.3rem; padding: 0 6px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+  .scenario { background: var(--warning-light); border-left: 4px solid var(--warning); padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+  .scenario h4 { color: var(--warning); margin-bottom: 8px; }
+  .diagram { background: #fff; border: 2px solid var(--gray-200); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; }
+  .diagram svg { max-width: 100%; }
+  .mode-tag { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; margin-right: 8px; }
+  .mode-solo { background: #ede9fe; color: #7c3aed; }
+  .mode-multi { background: #fce7f3; color: #db2777; }
+  .priority-table td:first-child { font-size: 1.2rem; text-align: center; }
+  ul { padding-left: 24px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .toc { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--gray-200); }
+  .toc a { color: var(--primary); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc ol { padding-left: 24px; }
+  .toc li { margin: 6px 0; }
+  .info-disclosure { display: flex; gap: 0; margin: 20px 0; }
+  .info-stage { flex: 1; padding: 16px; text-align: center; border: 2px solid var(--gray-200); position: relative; }
+  .info-stage:first-child { border-radius: 8px 0 0 8px; }
+  .info-stage:last-child { border-radius: 0 8px 8px 0; }
+  .info-stage h4 { font-size: 0.85rem; margin-bottom: 8px; }
+  .info-stage p { font-size: 0.8rem; color: var(--gray-600); }
+  .info-stage.stage-1 { background: var(--gray-100); }
+  .info-stage.stage-2 { background: var(--primary-light); }
+  .info-stage.stage-3 { background: var(--secondary-light); }
+  .info-stage.stage-4 { background: var(--warning-light); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>帰り便マッチングプラットフォーム</h1>
+<p class="subtitle">要件定義書 v1.0 &mdash; 2026年3月</p>
+
+<div class="toc">
+  <strong>目次</strong>
+  <ol>
+    <li><a href="#overview">サービス概要</a></li>
+    <li><a href="#users">ユーザーとロール</a></li>
+    <li><a href="#solo">ソロモード（自社配車管理）</a></li>
+    <li><a href="#multi">マルチプラットフォームモード（公開マッチング）</a></li>
+    <li><a href="#matching">マッチングフロー</a></li>
+    <li><a href="#predict">予測位置情報</a></li>
+    <li><a href="#chat">チャット機能</a></li>
+    <li><a href="#monetize">課金・マネタイズ設計</a></li>
+    <li><a href="#stripe">Stripe決済フロー</a></li>
+    <li><a href="#priority">優先度</a></li>
+  </ol>
+</div>
+
+<!-- ================================================ -->
+<h2 id="overview">1. サービス概要</h2>
+
+<div class="card">
+  <p><strong>コンセプト:</strong> 運送会社同士の助け合いプラットフォーム。帰り便（空車）にマッチングで荷物を載せ、空車率を下げる。荷主も参加可能。</p>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🏢</span>
+      <h3>ソロモード</h3>
+      <span class="mode-tag mode-solo">SOLO</span>
+    </div>
+    <p>自社の配車状況を一元管理。車番・車種・運転手名・スケジュール（何時にどこからどこまで何を運ぶか）を入力。1つの地図で全トラックの予測位置を一覧表示。</p>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🌐</span>
+      <h3>マルチプラットフォームモード</h3>
+      <span class="mode-tag mode-multi">MULTI</span>
+    </div>
+    <p>自社配車の一部工程（帰り便の空車区間等）を全体に公開。他社や荷主とマッチングし、チャットでやり取り。</p>
+  </div>
+</div>
+
+<div class="scenario">
+  <h4>具体例（神奈川県 / 本社: 横浜市）</h4>
+  <table>
+    <tr><th>トラック</th><th>往路</th><th>帰路</th><th>帰り荷</th></tr>
+    <tr><td>① 2t</td><td>横浜 → 川崎（9:00発 / 14:00着）</td><td>川崎 → 横浜</td><td><span class="badge badge-green">あり</span></td></tr>
+    <tr><td>② 4t</td><td>横浜 → 厚木（9:00発 / 15:00着）</td><td>厚木 → 横浜</td><td><span class="badge badge-green">あり</span></td></tr>
+    <tr><td>③ 10t</td><td>横浜 → 小田原（9:00発 / 15:00着）</td><td>小田原 → 横浜</td><td><span class="badge badge-red">なし → 募集!</span></td></tr>
+  </table>
+  <p style="margin-top:12px; color: var(--warning);">→ <strong>トラック③の帰路が空車</strong>。この区間を外部公開してマッチング対象にする。</p>
+</div>
+
+<!-- ================================================ -->
+<h2 id="users">2. ユーザーとロール</h2>
+
+<div class="card">
+  <table>
+    <tr><th>ロール</th><th>説明</th><th>主な操作</th></tr>
+    <tr><td><span class="badge badge-blue">owner</span></td><td>運送会社オーナー</td><td>会社設定、配車計画作成・承認、マッチング承認</td></tr>
+    <tr><td><span class="badge badge-blue">dispatcher</span></td><td>配車担当者</td><td>配車計画作成・編集</td></tr>
+    <tr><td><span class="badge badge-blue">driver</span></td><td>ドライバー</td><td>出発/到着ワンタップ報告、配送実行</td></tr>
+    <tr><td><span class="badge badge-green">shipper</span></td><td>荷主</td><td>便検索、マッチングリクエスト送信、決済</td></tr>
+    <tr><td><span class="badge badge-yellow">admin</span></td><td>システム管理者</td><td>全データ閲覧、ユーザー管理、統計</td></tr>
+  </table>
+</div>
+
+<!-- ================================================ -->
+<h2 id="solo">3. ソロモード（自社配車管理）</h2>
+
+<div class="card">
+  <h3>配車計画の単位</h3>
+  <p>「1台のトラック × 1日」＝ 1つの<strong>配車計画（dispatch_plan）</strong></p>
+  <p>配車計画は複数の<strong>区間（trip_leg）</strong>で構成される。</p>
+
+  <div class="diagram">
+    <pre style="font-size:0.9rem; line-height:1.8; color: var(--gray-800);">
+  ┌─────────────────────────────────────────────────────────┐
+  │ 配車計画: トラック③ (10t) / 田中太郎 / 2026-03-12       │
+  │                                                         │
+  │  区間1 [往路]                  区間2 [帰路]              │
+  │  ┌──────────────────┐         ┌──────────────────┐      │
+  │  │ 横浜 → 小田原    │  ───→  │ 小田原 → 横浜    │      │
+  │  │ 9:00発 / 15:00着 │         │ 16:00発 / 21:00着│      │
+  │  │ 荷物: あり        │         │ 荷物: なし        │      │
+  │  │ 公開: ❌ 非公開   │         │ 公開: ✅ 募集中   │      │
+  │  └──────────────────┘         └──────────────────┘      │
+  └─────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <h3>入力項目</h3>
+  <table>
+    <tr><th>項目</th><th>例</th><th>説明</th></tr>
+    <tr><td>車両</td><td>横浜 100 あ 1234（10t）</td><td>車番・車種。会社に紐づく</td></tr>
+    <tr><td>運転手</td><td>田中太郎</td><td>当日のドライバー</td></tr>
+    <tr><td>日付</td><td>2026-03-12</td><td>配車日</td></tr>
+    <tr><td>区間ごと</td><td>―</td><td>出発地、到着地、出発時刻、到着時刻、荷物状況、公開設定</td></tr>
+  </table>
+
+  <h3>荷物ステータス（区間ごと）</h3>
+  <table>
+    <tr><th>ステータス</th><th>意味</th><th>外部公開</th></tr>
+    <tr><td><span class="badge badge-green">loaded</span></td><td>荷物あり（自社案件）</td><td>マッチング対象外</td></tr>
+    <tr><td><span class="badge badge-red">empty_seeking</span></td><td>空車・荷物募集中</td><td>マッチング対象 ✅</td></tr>
+    <tr><td><span class="badge badge-yellow">empty_private</span></td><td>空車・募集しない</td><td>自社表示のみ</td></tr>
+  </table>
+</div>
+
+  <h3>配車ボード（複数ルート同時表示）</h3>
+  <p>1つの地図に自社の全トラックのルートを<strong>色分けして重ねて表示</strong>し、各トラックの予測位置をリアルタイム風に表示する。</p>
+
+  <div class="diagram">
+    <pre style="font-size:0.85rem; line-height:1.8; color: var(--gray-800);">
+  ┌──────────────────────────────────────────────────────────┐
+  │  配車ボード（2026-03-12）                  [日付選択]     │
+  │                                                          │
+  │  ┌────────────────────────────────────────────────────┐  │
+  │  │              Google Map                            │  │
+  │  │                                                    │  │
+  │  │   🔴 トラック① 横浜→川崎（赤ルート + 予測●）     │  │
+  │  │   🟢 トラック② 横浜→厚木（緑ルート + 予測●）     │  │
+  │  │   🔵 トラック③ 横浜→小田原（青ルート + 予測●）    │  │
+  │  │                                                    │  │
+  │  │   ※ 各ルートは DirectionsRenderer を複数描画       │  │
+  │  │   ※ 予測マーカーは 60秒ごと自動更新               │  │
+  │  └────────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  トラック一覧:                                            │
+  │  ┌───────┬─────────────┬────────┬───────┬──────────┐     │
+  │  │ 車番   │ ルート       │ 進捗   │ 状態   │ 帰り荷   │    │
+  │  │ ① 2t  │ 横浜→川崎   │ 70%    │ 配送中 │ あり     │    │
+  │  │ ② 4t  │ 横浜→厚木   │ 45%    │ 配送中 │ あり     │    │
+  │  │ ③ 10t │ 横浜→小田原  │ 30%   │ 配送中 │ 募集中!  │    │
+  │  └───────┴─────────────┴────────┴───────┴──────────┘     │
+  └──────────────────────────────────────────────────────────┘
+    </pre>
+  </div>
+
+  <table>
+    <tr><th>機能</th><th>説明</th></tr>
+    <tr><td>日付選択</td><td>当日の配車計画を一括取得して表示</td></tr>
+    <tr><td>色分けルート</td><td>トラックごとに異なる色でルートを描画（DirectionsRenderer 複数）</td></tr>
+    <tr><td>予測位置マーカー</td><td>各トラックの現在予測位置を地図上に表示（60秒自動更新）</td></tr>
+    <tr><td>トラック一覧テーブル</td><td>車番・ルート・進捗・帰り荷状態を一覧</td></tr>
+    <tr><td>クリックで詳細</td><td>トラックをクリックすると配車計画の詳細（区間一覧）を表示</td></tr>
+  </table>
+</div>
+
+<!-- ================================================ -->
+<h2 id="multi">4. マルチプラットフォームモード（公開マッチング）</h2>
+
+<div class="card">
+  <h3>公開範囲（区間ごとに設定）</h3>
+  <table>
+    <tr><th>設定</th><th>誰に見えるか</th><th>ユースケース</th></tr>
+    <tr><td><span class="badge badge-yellow">private</span></td><td>自社のみ</td><td>自社配車管理用</td></tr>
+    <tr><td><span class="badge badge-blue">company_only</span></td><td>運送会社ユーザーのみ</td><td>運送会社同士のマッチング</td></tr>
+    <tr><td><span class="badge badge-green">public</span></td><td>荷主含む全ユーザー</td><td>荷主からの依頼も受付</td></tr>
+  </table>
+
+  <h3>マッチング対象になる条件</h3>
+  <ul>
+    <li>区間の <code>cargo_status</code> が <code>empty_seeking</code>（空車・募集中）</li>
+    <li>区間の <code>visibility</code> が <code>public</code> または <code>company_only</code></li>
+    <li>区間の <code>status</code> が <code>scheduled</code>（まだ配送開始前）</li>
+  </ul>
+</div>
+
+<!-- ================================================ -->
+<h2 id="matching">5. マッチングフロー</h2>
+
+<div class="card">
+  <h3>リクエスト方向</h3>
+  <ul>
+    <li><strong>荷主 → 運送会社:</strong> 荷主が公開区間を見つけてリクエスト送信</li>
+    <li><strong>運送会社 → 別運送会社:</strong> 空車区間に対して他社がリクエスト送信</li>
+  </ul>
+
+  <h3>ステータス遷移</h3>
+  <div class="flow">
+    <div class="flow-step">pending<br><small>リクエスト送信</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">approved<br><small>運送会社が承認</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--warning-light); color: var(--warning);">payment_pending<br><small>決済待ち</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--danger-light); color: var(--danger);">completed<br><small>決済完了 / 配送完了</small></div>
+  </div>
+  <div class="flow" style="margin-top:8px;">
+    <div class="flow-step">pending</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--gray-200); color: var(--gray-600);">rejected<br><small>拒否</small></div>
+  </div>
+
+  <h3>承認/拒否の主体</h3>
+  <p>空車区間を持つ<strong>運送会社側</strong>（owner / dispatcher）がリクエストを承認または拒否する。</p>
+</div>
+
+<!-- ================================================ -->
+<h2 id="predict">6. 予測位置情報</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="icon">📍</span>
+    <h3>GPSなし・出発/到着時刻ベースの位置予測</h3>
+  </div>
+
+  <p><strong>前提:</strong> GPSは運転手が嫌がるため使わない。出発時刻と到着時刻を入力し、その間の「大体の現在地」を予測表示する。あくまで目安。</p>
+
+  <div class="diagram">
+    <pre style="font-size:0.9rem; line-height:1.8; color: var(--gray-800);">
+  A地点（横浜）              C地点（予測位置）             B地点（小田原）
+  9:00 出発                   12:00 ← いまこの辺?         15:00 到着
+  ●━━━━━━━━━━━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━●
+  ├── 経過 3時間 (50%) ──┤                              │
+  │                        ├────── 残り 3時間 ──────────┤
+
+  計算ロジック:
+  1. Google Routes API で A→B のルート＋ポリラインを取得
+  2. 出発時刻からの経過時間を計算
+  3. 各ステップの duration を積算し、経過時間に対応する位置を線形補間
+  4. その緯度経度にマーカーを表示
+    </pre>
+  </div>
+
+  <h3>地図表示（ソロモード）</h3>
+  <p>1つの地図に自社全トラック（例: ①②③）のルートを重ねて表示。各トラックの予測位置をリアルタイム風に表示。</p>
+
+  <h3>精度向上オプション（GPSなし）</h3>
+  <table>
+    <tr><th>方法</th><th>説明</th><th>運転手の負担</th></tr>
+    <tr><td>ワンタップ報告</td><td>「出発」「休憩開始/終了」「到着」ボタン</td><td>最小限 ✅</td></tr>
+    <tr><td>遅延手動入力</td><td>配車担当が「休憩30分」「渋滞20分遅れ」を入力</td><td>なし（担当者が操作）</td></tr>
+    <tr><td>チェックポイント</td><td>SA/IC名を選んで通過報告</td><td>少し</td></tr>
+  </table>
+  <p style="margin-top:12px;"><strong>※ traffic-aware polyline（追加課金）は使わない。</strong>標準のRoutes APIのみ使用。</p>
+</div>
+
+<!-- ================================================ -->
+<h2 id="chat">7. チャット機能</h2>
+
+<div class="card">
+  <p>マッチング承認後、自動でチャットルームが作成される。決済完了まではチャットのみ（電話番号は非公開）。</p>
+
+  <h3>コンテンツフィルタリング</h3>
+  <p>チャット内で会社情報（電話番号・メールアドレス・URL等）を送信しようとした場合、サーバーサイドで検知・ブロックする。</p>
+
+  <div class="flow">
+    <div class="flow-step">メッセージ送信</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--warning-light); color: var(--warning);">パターン照合</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">検知なし → 送信</div>
+  </div>
+  <div class="flow" style="margin-top:8px;">
+    <div class="flow-step" style="opacity:0;">メッセージ送信</div>
+    <span class="flow-arrow" style="opacity:0;">→</span>
+    <div class="flow-step" style="background: var(--warning-light); color: var(--warning);">パターン照合</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--danger-light); color: var(--danger);">検知あり → ブロック＋警告</div>
+  </div>
+
+  <h3>検知パターン例</h3>
+  <ul>
+    <li>電話番号: <code>\d{2,4}-\d{2,4}-\d{4}</code></li>
+    <li>メールアドレス: <code>[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+</code></li>
+    <li>URL: <code>https?://</code></li>
+  </ul>
+</div>
+
+<!-- ================================================ -->
+<h2 id="monetize">8. 課金・マネタイズ設計</h2>
+
+<div class="card">
+  <h3>課題と解決策</h3>
+
+  <table>
+    <tr><th>課題</th><th>解決策</th></tr>
+    <tr>
+      <td>運送会社の詳細を表示すると<br>直接電話でやりとりされる<br>（システムただ使い）</td>
+      <td><strong>段階的情報開示</strong><br>決済完了するまで連絡先は非公開</td>
+    </tr>
+    <tr>
+      <td>荷物がのるか、信用できるかは<br>完全自己責任</td>
+      <td><strong>評価・レビューシステム</strong><br>取引完了後に相互評価。信頼バッジ。車両の積載量自動チェック</td>
+    </tr>
+    <tr>
+      <td>チャットで会社情報を<br>出してしまう</td>
+      <td><strong>コンテンツフィルタリング</strong><br>電話番号・メール・URLをサーバーサイドで検知</td>
+    </tr>
+  </table>
+
+  <h3>段階的情報開示</h3>
+  <div class="info-disclosure">
+    <div class="info-stage stage-1">
+      <h4>検索時</h4>
+      <p>エリア<br>車種<br>積載量<br>料金</p>
+    </div>
+    <div class="info-stage stage-2">
+      <h4>マッチング申請後</h4>
+      <p>評価<br>実績件数<br>匿名表示名</p>
+    </div>
+    <div class="info-stage stage-3">
+      <h4>承認後</h4>
+      <p>会社名<br>チャット開放</p>
+    </div>
+    <div class="info-stage stage-4">
+      <h4>決済完了後</h4>
+      <p>電話番号<br>住所<br>運転手名</p>
+    </div>
+  </div>
+
+  <h3>サブスクリプションプラン（案）</h3>
+  <table>
+    <tr><th>プラン</th><th>料金</th><th>内容</th></tr>
+    <tr><td><span class="badge badge-yellow">Free</span></td><td>無料</td><td>ソロモードのみ。公開マッチング月3件まで</td></tr>
+    <tr><td><span class="badge badge-blue">Standard</span></td><td>¥9,800/月</td><td>公開マッチング無制限。チャット。基本統計</td></tr>
+    <tr><td><span class="badge badge-green">Premium</span></td><td>¥29,800/月</td><td>全機能。API連携。優先表示。分析レポート</td></tr>
+  </table>
+</div>
+
+<!-- ================================================ -->
+<h2 id="stripe">9. Stripe決済フロー（学習用参考実装）</h2>
+
+<div class="card">
+  <h3>マッチング単位の決済（Payment Intent）</h3>
+  <div class="flow">
+    <div class="flow-step">荷主が金額入力</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">Backend:<br>PaymentIntent作成</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">Stripe.js:<br>カード入力</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--warning-light); color: var(--warning);">3D Secure<br>(自動)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">Webhook:<br>成功通知</div>
+  </div>
+
+  <h3>サブスクリプション（Stripe Billing）</h3>
+  <div class="flow">
+    <div class="flow-step">会社がプラン選択</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">Checkout Session<br>作成</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">Stripe決済画面</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="background: var(--secondary-light); color: var(--secondary);">Webhook:<br>subscription更新</div>
+  </div>
+
+  <h3>Stripe API 使用箇所</h3>
+  <table>
+    <tr><th>機能</th><th>Stripe API</th><th>用途</th></tr>
+    <tr><td>マッチング決済</td><td>Payment Intents API</td><td>1回きりのマッチング料金支払い</td></tr>
+    <tr><td>サブスク</td><td>Billing / Subscriptions API</td><td>月額プラン課金</td></tr>
+    <tr><td>Webhook</td><td>Webhook Events</td><td>payment_intent.succeeded / invoice.paid 等</td></tr>
+    <tr><td>返金</td><td>Refunds API</td><td>キャンセル時の返金処理</td></tr>
+  </table>
+  <p style="margin-top:12px; color: var(--gray-600);"><em>※ Stripe Connectは初期フェーズでは不要。将来的に運送会社への直接入金が必要になった場合に検討。</em></p>
+</div>
+
+<!-- ================================================ -->
+<h2 id="priority">10. 優先度</h2>
+
+<div class="card">
+  <table class="priority-table">
+    <tr><th>優先度</th><th>項目</th><th>理由</th></tr>
+    <tr><td>🔴</td><td>DB再設計（会社・配車計画・区間の階層構造）</td><td>全機能の基盤。これがないと何も進まない</td></tr>
+    <tr><td>🔴</td><td>ソロモード（配車管理＋地図表示）</td><td>運送会社が最初に使う機能。これ単体で価値がある</td></tr>
+    <tr><td>🔴</td><td>段階的情報開示</td><td>マネタイズの要。直電回避の仕組み</td></tr>
+    <tr><td>🟡</td><td>マルチプラットフォーム（公開マッチング）</td><td>収益の柱。ソロモード完成後に着手</td></tr>
+    <tr><td>🟡</td><td>チャット＋フィルタリング</td><td>マッチング後のコミュニケーション</td></tr>
+    <tr><td>🟡</td><td>Stripe決済（Payment Intent）</td><td>課金フロー。マッチング完了の前提</td></tr>
+    <tr><td>🟢</td><td>予測位置情報</td><td>ソロモードの付加価値。なくても最低限動く</td></tr>
+    <tr><td>🟢</td><td>評価・レビュー</td><td>信頼構築。初期はなくてもOK</td></tr>
+    <tr><td>🔵</td><td>サブスクリプション</td><td>ユーザー数が増えてから</td></tr>
+    <tr><td>🔵</td><td>管理者ダッシュボード拡充</td><td>運用フェーズで随時追加</td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>
